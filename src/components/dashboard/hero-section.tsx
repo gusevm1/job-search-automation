@@ -3,20 +3,19 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Briefcase, TrendingUp, Users } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function HeroSection() {
   const prefersReducedMotion = useReducedMotion();
 
-  // Animation variants
+  // Animation variants - 20% slower (multiply by 1.2)
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: prefersReducedMotion ? 0 : 0.15,
-        delayChildren: prefersReducedMotion ? 0 : 0.2,
+        staggerChildren: prefersReducedMotion ? 0 : 0.18, // 0.15 * 1.2
+        delayChildren: prefersReducedMotion ? 0 : 0.24, // 0.2 * 1.2
       },
     },
   };
@@ -27,7 +26,7 @@ export function HeroSection() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: prefersReducedMotion ? 0 : 0.6,
+        duration: prefersReducedMotion ? 0 : 0.72, // 0.6 * 1.2
         ease: [0.22, 1, 0.36, 1] as const,
       },
     },
@@ -39,32 +38,11 @@ export function HeroSection() {
       opacity: 1,
       scale: 1,
       transition: {
-        duration: prefersReducedMotion ? 0 : 1.2,
+        duration: prefersReducedMotion ? 0 : 1.44, // 1.2 * 1.2
         ease: [0.22, 1, 0.36, 1] as const,
       },
     },
   };
-
-  const statCards = [
-    {
-      icon: Briefcase,
-      label: "Active Jobs",
-      value: "0",
-      color: "text-primary",
-    },
-    {
-      icon: TrendingUp,
-      label: "Success Rate",
-      value: "0%",
-      color: "text-secondary",
-    },
-    {
-      icon: Users,
-      label: "Interviews",
-      value: "0",
-      color: "text-primary",
-    },
-  ];
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
@@ -131,43 +109,6 @@ export function HeroSection() {
               </Button>
             </motion.div>
           </div>
-
-          {/* Stat Cards */}
-          <motion.div
-            variants={itemVariants}
-            className="mt-12 grid gap-4 sm:grid-cols-3 md:mt-16 lg:mt-20"
-          >
-            {statCards.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                variants={itemVariants}
-                whileHover={
-                  prefersReducedMotion
-                    ? {}
-                    : {
-                        y: -4,
-                        transition: { duration: 0.2 },
-                      }
-                }
-              >
-                <Card className="border-border/50 bg-card/80 backdrop-blur-sm transition-all hover:border-border hover:shadow-lg">
-                  <CardContent className="flex items-center gap-4 p-6">
-                    <div className={`rounded-lg bg-muted p-3 ${stat.color}`}>
-                      <stat.icon className="size-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        {stat.label}
-                      </p>
-                      <p className={`text-2xl font-bold ${stat.color}`}>
-                        {stat.value}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
         </div>
       </motion.div>
     </div>
