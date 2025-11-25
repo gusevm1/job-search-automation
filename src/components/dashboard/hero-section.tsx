@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
@@ -104,8 +105,8 @@ export function HeroSection() {
                 Get Started
                 <ArrowRight className="transition-transform group-hover:translate-x-1" />
               </Button>
-              <Button size="lg" variant="outline">
-                Upload CV
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/profile">Upload CV</Link>
               </Button>
             </motion.div>
           </div>
