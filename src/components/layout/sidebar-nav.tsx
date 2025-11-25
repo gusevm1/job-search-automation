@@ -1,0 +1,66 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, User, Briefcase, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+const navItems = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Profile",
+    href: "/profile",
+    icon: User,
+  },
+  {
+    title: "Jobs",
+    href: "/jobs",
+    icon: Briefcase,
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+];
+
+export function SidebarNav() {
+  const pathname = usePathname();
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border px-6 py-4">
+        <h2 className="text-lg font-semibold">Job Search Automation</h2>
+      </div>
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              {item.title}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="border-t border-border px-3 py-4">
+        <ThemeToggle />
+      </div>
+    </div>
+  );
+}

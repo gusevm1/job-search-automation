@@ -15,3 +15,6 @@
 - State what you're doing before doing it
 - Summarize completed work
 - Note any issues or blockers
+
+## Emoji Use
+Don't use any emojis in your outputs, if you are styling a website always use icons that are of a set theme and never use emojis.
