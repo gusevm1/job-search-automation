@@ -1,0 +1,17 @@
+{
+  "project": "JobSearchAutomation",
+  "contextEngineering": {
+    "strategy": "reduce-and-delegate",
+    "primaryAgentMCP": false,
+    "subagentMCPConfigs": ".claude/utils/mcp-configs/"
+  },
+  "agents": {
+    "frontend": ".claude/agents/frontend.md",
+    "scraper": ".claude/agents/scraper.md"
+  },
+  "contextBundles": {
+    "enabled": true,
+    "path": ".claude/agents/context_bundles/",
+    "format": "json+markdown"
+  }
+}

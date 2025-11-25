@@ -1,0 +1,2 @@
+# This file ensures the context_bundles directory is tracked by git
+# Session logs will be created here by the post-tool-use hook
