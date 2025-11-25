@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Search Automation",
+  title: "Jobflow",
   description: "Automated job search and CV management",
 };
 
