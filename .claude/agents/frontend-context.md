@@ -3,7 +3,7 @@
 > This file is automatically loaded when the frontend agent starts. Keep it updated with current project state.
 
 ## Project Overview
-Job Search Automation - A Next.js application for automated job searching with CV parsing.
+Jobflow - A Next.js application for automated job searching with CV parsing.
 
 ## Tech Stack
 - Next.js 16 (App Router, src/app/)
@@ -95,3 +95,39 @@ src/
   - Full accessibility with prefers-reduced-motion support
 - **Stock Image**: https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d (person at laptop)
 - **Design Pattern**: Full-width background image with dark gradient overlays, content overlaid with glass-morphism cards
+
+## Button Animations
+- **Approach**: CSS-based (Tailwind utility classes)
+- **Hover Effects**:
+  - Subtle scale up (1.03x) with 150ms ease-out transition
+  - Color transition to lighter shade (90% opacity)
+  - Primary glow: 0_4px_12px with primary color at 15% opacity (25% in dark mode)
+  - Outline variant: Enhanced shadow-md
+  - Ghost variant: No glow (background color only)
+  - Link variant: No scale (preserves underline alignment)
+- **Active/Click Effects**:
+  - Scale down to 0.97x
+  - Quick 100ms transition for snappy feedback
+- **Accessibility**:
+  - Respects prefers-reduced-motion (disables scale transforms)
+  - All animations disabled when motion-reduce is active
+- **Applied To**: All button variants (default, destructive, outline, secondary, ghost, link)
+
+## Header/App Shell
+- App name: "Jobflow" (centered in header)
+- Header height: h-16 (mobile), h-20 (desktop)
+- Hamburger menu: h-14 w-14 button, h-9 w-9 icon
+- Title animation: fadeInDown on page load
+- Menu onboarding: heartbeat animation on first visit
+- Theme toggle: moved to top of sidebar
+
+## Custom CSS Animations (globals.css)
+- `animate-heartbeat` - Pulsing scale 1.0 -> 1.3 -> 1.0
+- `animate-fade-in-down` - Fade + translate from -100% Y
+
+## Build Verification (REQUIRED)
+Always run before completing work:
+```bash
+npm run build
+```
+Fix any TypeScript or build errors before marking task complete.
