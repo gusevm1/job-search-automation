@@ -35,7 +35,7 @@ export function SidebarNav() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border px-6 py-4">
-        <h2 className="text-lg font-semibold">Job Search Automation</h2>
+        <h2 className="text-lg font-semibold">Jobflow</h2>
       </div>
       <div className="border-b border-border px-3 py-3">
         <ThemeToggle />
