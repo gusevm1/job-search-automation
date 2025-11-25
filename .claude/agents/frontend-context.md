@@ -11,6 +11,7 @@ Job Search Automation - A Next.js application for automated job searching with C
 - Tailwind CSS 4
 - shadcn/ui components
 - next-themes for dark/light mode
+- framer-motion (animations)
 
 ## Theme
 - Name: Darkmatter (from tweakcn)
@@ -25,16 +26,19 @@ src/
 ├── app/
 │   ├── globals.css          # Theme variables
 │   ├── layout.tsx           # Root layout with ThemeProvider + AppShell
-│   ├── page.tsx             # Dashboard (placeholder)
+│   ├── page.tsx             # Dashboard with hero and features
 │   ├── profile/page.tsx     # Profile (placeholder)
 │   ├── jobs/page.tsx        # Jobs (placeholder)
 │   └── settings/page.tsx    # Settings (placeholder)
 ├── components/
+│   ├── dashboard/
+│   │   └── hero-section.tsx # Hero with animated stock image
 │   ├── layout/
 │   │   ├── app-shell.tsx    # Main shell with header + sheet sidebar
 │   │   └── sidebar-nav.tsx  # Navigation links
 │   ├── ui/                  # shadcn components
 │   │   ├── button.tsx
+│   │   ├── card.tsx
 │   │   ├── sheet.tsx
 │   │   └── navigation-menu.tsx
 │   ├── theme-provider.tsx   # next-themes wrapper
@@ -45,6 +49,7 @@ src/
 
 ## Installed shadcn Components
 - button
+- card
 - sheet
 - navigation-menu
 
@@ -54,11 +59,17 @@ src/
 - Navigation: Dashboard, Profile, Jobs, Settings
 - Theme toggle at bottom of sidebar
 
+## Completed Features
+- [x] Dashboard with animated hero section
+- [x] Hero section with Unsplash stock image
+- [x] Framer Motion animations with reduced-motion support
+- [x] Features overview cards
+
 ## Pending Features
-- [ ] Dashboard with stat cards
 - [ ] Jobs listing with filters
 - [ ] Profile/CV display
 - [ ] Settings page
+- [ ] CV upload functionality
 
 ## shadcn/ui Rules
 1. Use MCP server to install components (don't write manually)
@@ -66,7 +77,21 @@ src/
 3. Apply components wherever applicable
 
 ## Recent Changes
-- Initial setup with Next.js 16 + shadcn/ui
-- Darkmatter theme applied
-- App shell with drawer sidebar implemented
-- Navigation and theme toggle working
+- Added animated hero section to dashboard with Unsplash stock image
+- Implemented Framer Motion animations with accessibility support
+- Created hero-section.tsx component with staggered entrance animations
+- Added stat cards with hover effects and backdrop blur
+- Redesigned dashboard page with features section
+- Installed framer-motion and card component
+
+## Animation Implementation
+- **Library**: Framer Motion
+- **Approach**: Staggered entrance animations with fade/slide effects
+- **Features**:
+  - Image fade-in with scale effect (1.1 to 1.0)
+  - Sequential text animations (headline, subheadline, CTA buttons)
+  - Stat cards with hover lift effect
+  - Gradient overlays for text readability
+  - Full accessibility with prefers-reduced-motion support
+- **Stock Image**: https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d (person at laptop)
+- **Design Pattern**: Full-width background image with dark gradient overlays, content overlaid with glass-morphism cards
