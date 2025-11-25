@@ -95,3 +95,20 @@ src/
   - Full accessibility with prefers-reduced-motion support
 - **Stock Image**: https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d (person at laptop)
 - **Design Pattern**: Full-width background image with dark gradient overlays, content overlaid with glass-morphism cards
+
+## Button Animations
+- **Approach**: CSS-based (Tailwind utility classes)
+- **Hover Effects**:
+  - Subtle scale up (1.03x) with 150ms ease-out transition
+  - Color transition to lighter shade (90% opacity)
+  - Primary glow: 0_4px_12px with primary color at 15% opacity (25% in dark mode)
+  - Outline variant: Enhanced shadow-md
+  - Ghost variant: No glow (background color only)
+  - Link variant: No scale (preserves underline alignment)
+- **Active/Click Effects**:
+  - Scale down to 0.97x
+  - Quick 100ms transition for snappy feedback
+- **Accessibility**:
+  - Respects prefers-reduced-motion (disables scale transforms)
+  - All animations disabled when motion-reduce is active
+- **Applied To**: All button variants (default, destructive, outline, secondary, ghost, link)
