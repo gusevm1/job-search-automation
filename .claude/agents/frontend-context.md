@@ -3,7 +3,7 @@
 > This file is automatically loaded when the frontend agent starts. Keep it updated with current project state.
 
 ## Project Overview
-Job Search Automation - A Next.js application for automated job searching with CV parsing.
+Jobflow - A Next.js application for automated job searching with CV parsing.
 
 ## Tech Stack
 - Next.js 16 (App Router, src/app/)
@@ -112,3 +112,22 @@ src/
   - Respects prefers-reduced-motion (disables scale transforms)
   - All animations disabled when motion-reduce is active
 - **Applied To**: All button variants (default, destructive, outline, secondary, ghost, link)
+
+## Header/App Shell
+- App name: "Jobflow" (centered in header)
+- Header height: h-16 (mobile), h-20 (desktop)
+- Hamburger menu: h-14 w-14 button, h-9 w-9 icon
+- Title animation: fadeInDown on page load
+- Menu onboarding: heartbeat animation on first visit
+- Theme toggle: moved to top of sidebar
+
+## Custom CSS Animations (globals.css)
+- `animate-heartbeat` - Pulsing scale 1.0 -> 1.3 -> 1.0
+- `animate-fade-in-down` - Fade + translate from -100% Y
+
+## Build Verification (REQUIRED)
+Always run before completing work:
+```bash
+npm run build
+```
+Fix any TypeScript or build errors before marking task complete.
