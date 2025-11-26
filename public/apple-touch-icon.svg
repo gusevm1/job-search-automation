@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
+  <!-- Jobflow Apple Touch Icon 180x180 -->
+
+  <!-- Background -->
+  <rect width="180" height="180" rx="40" fill="#1a1a1a"/>
+
+  <!-- Briefcase base - dark grey with orange outline -->
+  <rect x="28" y="62" width="124" height="90" rx="12" fill="#2a2a2a" stroke="#ea580c" stroke-width="5"/>
+
+  <!-- Briefcase handle - orange outline -->
+  <path d="M58 62V44a14 14 0 0 1 14-14h36a14 14 0 0 1 14 14v18" stroke="#ea580c" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <!-- Flow arrow (upward momentum) - orange -->
+  <path d="M90 132V86M66 108l24-24 24 24" stroke="#ea580c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

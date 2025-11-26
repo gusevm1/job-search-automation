@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, User, Briefcase, Settings } from "lucide-react";
+import { Home, User, Briefcase, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
   {
-    title: "Dashboard",
+    title: "Home",
     href: "/",
-    icon: LayoutDashboard,
+    icon: Home,
   },
   {
     title: "Profile",
@@ -35,7 +36,16 @@ export function SidebarNav() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-border px-6 py-4">
-        <h2 className="text-lg font-semibold">Jobflow</h2>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/logo.svg"
+            alt="Jobflow"
+            width={32}
+            height={32}
+            className="shrink-0"
+          />
+          <h2 className="text-lg font-semibold">Jobflow</h2>
+        </div>
       </div>
       <div className="border-b border-border px-3 py-3">
         <ThemeToggle />

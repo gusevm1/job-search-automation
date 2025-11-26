@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Jobflow PWA Icon 512x512 -->
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#1a1a1a"/>
+
+  <!-- Briefcase base - dark grey with orange outline -->
+  <rect x="80" y="176" width="352" height="256" rx="32" fill="#2a2a2a" stroke="#ea580c" stroke-width="12"/>
+
+  <!-- Briefcase handle - orange outline -->
+  <path d="M168 176V128a40 40 0 0 1 40-40h96a40 40 0 0 1 40 40v48" stroke="#ea580c" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+  <!-- Flow arrow (upward momentum) - orange -->
+  <path d="M256 384V240M192 312l64-64 64 64" stroke="#ea580c" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

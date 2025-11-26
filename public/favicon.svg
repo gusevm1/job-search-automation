@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Jobflow Favicon: Compact briefcase with arrow -->
+
+  <!-- Briefcase base - dark grey with orange outline -->
+  <rect x="4" y="10" width="24" height="17" rx="2.5" fill="#2a2a2a" stroke="#ea580c" stroke-width="1.5"/>
+
+  <!-- Briefcase handle - orange outline -->
+  <path d="M11 10V7.5a2.5 2.5 0 0 1 2.5-2.5h5a2.5 2.5 0 0 1 2.5 2.5V10" stroke="#ea580c" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Flow arrow (upward momentum) - orange -->
+  <path d="M16 23V14M12 18l4-4 4 4" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
