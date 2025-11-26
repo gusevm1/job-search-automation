@@ -9,15 +9,15 @@ export const PersonalInfoSchema = z.object({
   email: z.string().email(),
   phone: z.string().optional(),
   location: z.object({
-    city: z.string().optional(),
-    state: z.string().optional(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
     country: z.string(),
-    postalCode: z.string().optional(),
+    postalCode: z.string().nullable().optional(),
     willingToRelocate: z.boolean().default(false),
     relocationPreferences: z.array(z.string()).optional(),
   }),
-  linkedIn: z.string().url().optional(),
-  github: z.string().url().optional(),
+  linkedIn: z.string().optional(), // Can be URL or just username/path
+  github: z.string().optional(), // Can be URL or just username
   portfolio: z.string().url().optional(),
   summary: z.string().optional(),
 });
@@ -44,7 +44,7 @@ export const WorkExperienceSchema = z.object({
   achievements: z.array(
     z.object({
       description: z.string(),
-      metric: z.string().optional(),
+      metric: z.string().nullable().optional(),
     })
   ),
   skillsUsed: z.array(z.string()),
@@ -54,7 +54,7 @@ export const WorkExperienceSchema = z.object({
     "contract",
     "freelance",
     "internship",
-  ]),
+  ]).optional().default("full-time"),
 });
 
 export type WorkExperience = z.infer<typeof WorkExperienceSchema>;
@@ -78,7 +78,7 @@ export const EducationSchema = z.object({
   field: z.string(),
   startDate: z.string().optional(),
   graduationDate: z.string().optional(),
-  gpa: z.number().min(0).max(4).optional(),
+  gpa: z.number().min(0).max(10).optional(), // Supports various grading systems (US 4.0, European 6.0, etc.)
   honors: z.string().optional(),
   relevantCoursework: z.array(z.string()).optional(),
   activities: z.array(z.string()).optional(),
