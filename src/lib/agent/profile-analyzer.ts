@@ -40,35 +40,7 @@ export const JOB_BOARDS: JobBoardInfo[] = [
       return `https://www.datacareer.ch/categories/AI/`;
     },
   },
-  {
-    id: "ictjobs",
-    name: "ICTjobs.ch",
-    baseUrl: "https://www.ictjobs.ch",
-    regions: ["CH"],
-    specialization: "tech",
-    rateLimit: 5,
-    buildSearchUrl: (query, location) => {
-      const params = new URLSearchParams();
-      if (query) params.set("q", query);
-      return `https://www.ictjobs.ch/en/jobs?${params.toString()}`;
-    },
-  },
-  // Swiss General Boards
-  {
-    id: "jobs.ch",
-    name: "Jobs.ch",
-    baseUrl: "https://www.jobs.ch",
-    regions: ["CH"],
-    specialization: "general",
-    rateLimit: 5,
-    buildSearchUrl: (query, location) => {
-      const params = new URLSearchParams();
-      if (query) params.set("term", query);
-      if (location) params.set("location", location);
-      return `https://www.jobs.ch/en/vacancies/?${params.toString()}`;
-    },
-  },
-  // International Aggregators
+  // International Aggregators - WORKING
   {
     id: "indeed",
     name: "Indeed CH",
@@ -91,25 +63,55 @@ export const JOB_BOARDS: JobBoardInfo[] = [
     specialization: "general",
     rateLimit: 5,
     buildSearchUrl: (query, location) => {
-      const searchQuery = encodeURIComponent(query || "");
-      return `https://www.glassdoor.com/Job/switzerland-${searchQuery.toLowerCase().replace(/%20/g, "-")}-jobs-SRCH_IL.0,11_IN226.htm`;
+      const searchQuery = encodeURIComponent(query || "").replace(/%20/g, "-").toLowerCase();
+      return `https://www.glassdoor.com/Job/switzerland-${searchQuery}-jobs-SRCH_IL.0,11_IN226_KO12,${12 + searchQuery.length}.htm`;
     },
   },
-  // LinkedIn (disabled - requires enterprise)
+  // LIMITED RESULTS - Jobs.ch only extracts first page due to JS rendering
   {
-    id: "linkedin",
-    name: "LinkedIn",
-    baseUrl: "https://www.linkedin.com/jobs",
-    regions: ["Global"],
+    id: "jobs.ch",
+    name: "Jobs.ch",
+    baseUrl: "https://www.jobs.ch",
+    regions: ["CH"],
     specialization: "general",
-    rateLimit: 3,
+    rateLimit: 5,
     buildSearchUrl: (query, location) => {
       const params = new URLSearchParams();
-      if (query) params.set("keywords", query);
+      if (query) params.set("term", query);
       if (location) params.set("location", location);
-      return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
+      return `https://www.jobs.ch/en/vacancies/?${params.toString()}`;
     },
   },
+  // Additional Swiss Job Boards
+  {
+    id: "jobup",
+    name: "Jobup.ch",
+    baseUrl: "https://www.jobup.ch",
+    regions: ["CH"],
+    specialization: "general",
+    rateLimit: 5,
+    buildSearchUrl: (query, location) => {
+      const params = new URLSearchParams();
+      if (query) params.set("term", query);
+      return `https://www.jobup.ch/en/jobs/?${params.toString()}`;
+    },
+  },
+  {
+    id: "jobscout24",
+    name: "Jobscout24.ch",
+    baseUrl: "https://www.jobscout24.ch",
+    regions: ["CH"],
+    specialization: "general",
+    rateLimit: 5,
+    buildSearchUrl: (query, location) => {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      return `https://www.jobscout24.ch/en/jobs/?${params.toString()}`;
+    },
+  },
+  // DISABLED BOARDS:
+  // - ictjobs: Requires JS interaction for search
+  // - linkedin: Requires Firecrawl Enterprise
 ];
 
 // ============================================
@@ -292,6 +294,7 @@ export class ProfileAnalyzer {
 
   /**
    * Generate search queries from profile data
+   * Prioritizes AI-generated keywords if available
    */
   private generateSearchQueries(
     topSkills: string[],
@@ -300,6 +303,54 @@ export class ProfileAnalyzer {
   ): SearchQuery[] {
     const queries: SearchQuery[] = [];
     const primaryLocation = locations[0] || "Switzerland";
+
+    // Check if user has keywords (AI-generated or manual) - these take priority
+    const aiKeywords = this.profile.jobSearchConfig?.generatedKeywords || [];
+    const manualKeywords = this.profile.jobSearchConfig?.manualKeywords || [];
+
+    // Combine and deduplicate keywords (manual keywords first as they're user-specified)
+    const allKeywords = [...new Set([...manualKeywords, ...aiKeywords])];
+
+    if (allKeywords.length > 0) {
+      console.log(`[ProfileAnalyzer] Using ${allKeywords.length} keywords (${manualKeywords.length} manual, ${aiKeywords.length} AI-generated)`);
+
+      // All keywords get highest priority
+      for (const keyword of allKeywords) {
+        queries.push({
+          query: keyword,
+          location: primaryLocation,
+          priority: 10,
+          category: manualKeywords.includes(keyword) ? "manual" : "ai_generated",
+        });
+      }
+
+      // Also add without location for broader search (top 3)
+      for (const keyword of allKeywords.slice(0, 3)) {
+        queries.push({
+          query: keyword,
+          location: undefined,
+          priority: 9,
+          category: "global",
+        });
+      }
+
+      // Add remote variations for top keywords (top 2)
+      for (const keyword of allKeywords.slice(0, 2)) {
+        queries.push({
+          query: `${keyword} Remote`,
+          location: undefined,
+          remote: true,
+          priority: 8,
+          category: "remote",
+        });
+      }
+
+      // Sort by priority and return
+      return queries.sort((a, b) => b.priority - a.priority);
+    }
+
+    // Fallback to original logic if no AI keywords
+    console.log("[ProfileAnalyzer] No AI keywords, using profile-based generation");
 
     // 1. Title-based queries (highest priority)
     for (const title of targetTitles.slice(0, 5)) {
@@ -324,7 +375,6 @@ export class ProfileAnalyzer {
     // 3. Combination queries (title + key technology)
     const techCategories = this.groupSkillsByCategory();
     const frameworks = techCategories.get("framework") || [];
-    const languages = techCategories.get("language") || [];
 
     // ML + Framework combinations
     for (const fw of frameworks.slice(0, 3)) {

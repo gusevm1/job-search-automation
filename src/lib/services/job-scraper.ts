@@ -191,21 +191,103 @@ function validateJobData(job: Record<string, unknown>): boolean {
 // ============================================
 
 /**
+ * Target jobs per query - we'll scrape multiple pages to reach this
+ */
+const TARGET_JOBS_PER_QUERY = 50;
+
+/**
+ * Maximum pages to scrape per query (to avoid excessive API calls)
+ */
+const MAX_PAGES_PER_QUERY = 3;
+
+/**
  * Firecrawl API client for job scraping
  */
 class FirecrawlJobScraper {
   private apiKey: string;
+  private anthropicKey: string;
   private baseUrl = "https://api.firecrawl.dev/v1";
 
   constructor() {
     this.apiKey = process.env.FIRECRAWL_API_KEY || "";
+    this.anthropicKey = process.env.ANTHROPIC_API_KEY || "";
     if (!this.apiKey) {
       console.warn("FIRECRAWL_API_KEY not set - scraping will fail");
     }
   }
 
   /**
-   * Scrape a URL and extract job listings using AI
+   * Scrape multiple pages to reach target job count
+   * @param baseUrl - Base search URL
+   * @param sourceSite - Name of the job board
+   * @param paginationConfig - How to paginate for this board
+   */
+  async scrapeJobsWithPagination(
+    baseUrl: string,
+    sourceSite: string,
+    paginationConfig: {
+      type: "param" | "none";
+      paramName?: string;
+      startValue?: number;
+      increment?: number;
+    } = { type: "none" }
+  ): Promise<EnhancedJobListing[]> {
+    const allJobs: EnhancedJobListing[] = [];
+    const seenIds = new Set<string>();
+
+    for (let page = 0; page < MAX_PAGES_PER_QUERY; page++) {
+      // Build URL for this page
+      let pageUrl = baseUrl;
+      if (paginationConfig.type === "param" && paginationConfig.paramName) {
+        const startValue = (paginationConfig.startValue || 0) + page * (paginationConfig.increment || 10);
+        const separator = baseUrl.includes("?") ? "&" : "?";
+        pageUrl = `${baseUrl}${separator}${paginationConfig.paramName}=${startValue}`;
+      }
+
+      try {
+        const jobs = await this.scrapeJobs(pageUrl, sourceSite);
+        const previousCount = allJobs.length;
+
+        // Deduplicate by title+company combo (IDs are generated fresh each time)
+        for (const job of jobs) {
+          const jobKey = `${job.title}-${job.company}`.toLowerCase().trim();
+          if (!seenIds.has(jobKey)) {
+            seenIds.add(jobKey);
+            allJobs.push(job);
+          }
+        }
+
+        const newJobsAdded = allJobs.length - previousCount;
+        console.log(`[${sourceSite}] Page ${page + 1}: ${jobs.length} scraped, ${newJobsAdded} new (total unique: ${allJobs.length})`);
+
+        // Stop if we've reached target
+        if (allJobs.length >= TARGET_JOBS_PER_QUERY) {
+          console.log(`[${sourceSite}] Reached target of ${TARGET_JOBS_PER_QUERY} jobs`);
+          break;
+        }
+
+        // Stop if no jobs found or all jobs were duplicates
+        if (jobs.length === 0 || newJobsAdded === 0) {
+          console.log(`[${sourceSite}] No new unique jobs found, stopping pagination`);
+          break;
+        }
+
+        // Don't paginate if board doesn't support it
+        if (paginationConfig.type === "none") {
+          break;
+        }
+      } catch (error) {
+        console.error(`[${sourceSite}] Page ${page + 1} failed:`, error);
+        // Continue with jobs we have so far
+        break;
+      }
+    }
+
+    return allJobs.slice(0, TARGET_JOBS_PER_QUERY);
+  }
+
+  /**
+   * Scrape a single URL and extract job listings using AI
    * Includes 30-second timeout to prevent hanging on slow responses
    */
   async scrapeJobs(
@@ -218,11 +300,11 @@ class FirecrawlJobScraper {
 
     console.log(`[Scraper] Scraping ${sourceSite}: ${url}`);
 
-    // Set up 30-second timeout
+    // Set up 90-second timeout (AI extraction can be slow for large pages)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 30000); // 30 seconds
+    }, 90000); // 90 seconds
 
     try {
       const response = await fetch(`${this.baseUrl}/scrape`, {
@@ -268,8 +350,8 @@ class FirecrawlJobScraper {
 
       // Handle timeout specifically
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error(`[Scraper] Request timed out after 30s for ${sourceSite}: ${url}`);
-        throw new Error(`Scrape timed out after 30s for ${sourceSite}`);
+        console.error(`[Scraper] Request timed out after 90s for ${sourceSite}: ${url}`);
+        throw new Error(`Scrape timed out after 90s for ${sourceSite}`);
       }
 
       console.error(`[Scraper] Error scraping ${url}:`, error);
@@ -278,28 +360,180 @@ class FirecrawlJobScraper {
   }
 
   /**
+   * Fallback scraper using markdown + local Claude parsing
+   * Use this for sites where Firecrawl extract times out
+   */
+  async scrapeJobsWithFallback(
+    url: string,
+    sourceSite: string
+  ): Promise<EnhancedJobListing[]> {
+    if (!this.apiKey) {
+      throw new Error("FIRECRAWL_API_KEY is not configured");
+    }
+
+    console.log(`[Scraper] Scraping ${sourceSite} with fallback: ${url}`);
+
+    // Step 1: Get markdown from Firecrawl (fast, reliable)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/scrape`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          url,
+          formats: ["markdown"],
+          waitFor: 3000, // Wait for JS to render
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Scraper] Markdown fetch error: ${response.status}`, errorText);
+        throw new Error(`Firecrawl API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const markdown = result.data?.markdown;
+
+      if (!markdown || markdown.length < 100) {
+        console.log(`[Scraper] No content from ${url}`);
+        return [];
+      }
+
+      // Step 2: Parse with Claude
+      if (!this.anthropicKey) {
+        console.error("[Scraper] ANTHROPIC_API_KEY not set for fallback parsing");
+        return [];
+      }
+
+      const jobs = await this.parseMarkdownWithClaude(markdown, sourceSite, url);
+      console.log(`[Scraper] Fallback found ${jobs.length} jobs from ${sourceSite}`);
+
+      return jobs;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        console.error(`[Scraper] Fallback timed out for ${sourceSite}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parse markdown content with Claude to extract jobs
+   */
+  private async parseMarkdownWithClaude(
+    markdown: string,
+    sourceSite: string,
+    sourceUrl: string
+  ): Promise<EnhancedJobListing[]> {
+    // Truncate to avoid token limits
+    const truncatedMarkdown = markdown.slice(0, 20000);
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-3-haiku-20240307",
+        max_tokens: 4000,
+        messages: [
+          {
+            role: "user",
+            content: `Extract ALL job listings from this job board page. Look for patterns like:
+- Job titles (linked text or headers)
+- Company names
+- Locations
+- Any bullet points or list items that represent jobs
+
+This is from ${sourceSite}. Return ONLY valid JSON array with no explanation.
+
+For each job extract:
+- title (required)
+- company (required, or "Unknown" if not found)
+- location (optional)
+
+Return format: [{"title":"...", "company":"...", "location":"..."}]
+
+IMPORTANT: Extract ALL jobs visible, not just the first one. Look for list items, links, and repeated patterns.
+If no jobs found, return: []
+
+Content:
+${truncatedMarkdown}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[Scraper] Claude parsing error: ${response.status}`);
+      return [];
+    }
+
+    const result = await response.json();
+    const content = result.content?.[0]?.text || "[]";
+
+    // Extract JSON from response
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.log("[Scraper] No JSON found in Claude response");
+      return [];
+    }
+
+    try {
+      const jobs = JSON.parse(jsonMatch[0]);
+      const now = new Date().toISOString();
+
+      return jobs
+        .filter((job: Record<string, unknown>) => job.title && job.company)
+        .slice(0, 50)
+        .map((job: Record<string, unknown>) => ({
+          id: generateJobId(),
+          title: sanitizeString(job.title, FIELD_LIMITS.title),
+          company: sanitizeString(job.company, FIELD_LIMITS.company),
+          location: job.location
+            ? sanitizeString(job.location, FIELD_LIMITS.location)
+            : undefined,
+          description: job.description
+            ? sanitizeString(job.description, FIELD_LIMITS.description)
+            : undefined,
+          sourceUrl: sourceUrl,
+          sourceSite: sourceSite,
+          scrapedAt: now,
+          status: "new" as const,
+        }));
+    } catch (e) {
+      console.error("[Scraper] Failed to parse Claude JSON:", e);
+      return [];
+    }
+  }
+
+  /**
    * Extraction prompt for job listings
+   * Keep this concise for faster extraction
    */
   private getExtractionPrompt(): string {
-    return `Extract all job listings from this job board page. For each job, extract:
-- Job title
-- Company name
-- Location (city, country, or "Remote")
-- Employment type (full-time, part-time, contract, internship)
-- Remote work option (remote, hybrid, on-site)
-- Job description or summary
-- Required skills/technologies mentioned
-- Salary information if available
-- Posted date if shown
-- URL to apply or view full job details
+    return `Extract ALL job listings from this page. For each job, get:
+- title (required)
+- company (required)
+- location
+- description (brief summary)
+- technologies/skills mentioned
+- salary if shown
+- application URL
 
-Focus on tech/engineering jobs, especially those related to:
-- Machine Learning / AI / Data Science
-- Software Engineering
-- LLMs / NLP / Computer Vision
-- Cloud / DevOps
-
-Return ALL jobs visible on the page, not just a sample.`;
+Extract every job visible, up to 50 jobs maximum.`;
   }
 
   /**
@@ -489,6 +723,7 @@ Return ALL jobs visible on the page, not just a sample.`;
 
 /**
  * SwissDevJobs.ch scraper
+ * Supports pagination via page parameter
  */
 export async function scrapeSwissDevJobs(
   query: string,
@@ -502,7 +737,13 @@ export async function scrapeSwissDevJobs(
   const url = `https://swissdevjobs.ch/jobs?${params.toString()}`;
 
   try {
-    return await scraper.scrapeJobs(url, "SwissDevJobs");
+    // SwissDevJobs uses page=X parameter (1-indexed)
+    return await scraper.scrapeJobsWithPagination(url, "SwissDevJobs", {
+      type: "param",
+      paramName: "page",
+      startValue: 1,
+      increment: 1,
+    });
   } catch (error) {
     console.error("[SwissDevJobs] Scrape failed:", error);
     return [];
@@ -511,6 +752,7 @@ export async function scrapeSwissDevJobs(
 
 /**
  * Jobs.ch scraper
+ * Supports pagination via page parameter
  */
 export async function scrapeJobsCh(
   query: string,
@@ -525,7 +767,13 @@ export async function scrapeJobsCh(
   const url = `https://www.jobs.ch/en/vacancies/?${params.toString()}`;
 
   try {
-    return await scraper.scrapeJobs(url, "Jobs.ch");
+    // Jobs.ch uses page=X parameter (1-indexed)
+    return await scraper.scrapeJobsWithPagination(url, "Jobs.ch", {
+      type: "param",
+      paramName: "page",
+      startValue: 1,
+      increment: 1,
+    });
   } catch (error) {
     console.error("[Jobs.ch] Scrape failed:", error);
     return [];
@@ -569,6 +817,7 @@ export async function scrapeJobBoard(
 
 /**
  * Datacareer.ch scraper - specialized for Data/AI roles
+ * Uses the main jobs page with search query for better results
  */
 export async function scrapeDatacareer(
   query: string,
@@ -576,21 +825,24 @@ export async function scrapeDatacareer(
 ): Promise<EnhancedJobListing[]> {
   const scraper = new FirecrawlJobScraper();
 
-  // Datacareer.ch URL structure for AI jobs
-  const categoryMap: Record<string, string> = {
-    "machine learning": "ML",
-    "ai": "AI",
-    "data science": "DS",
-    "data engineer": "DE",
-    "python": "AI",
-    "llm": "AI",
-  };
+  // Use the main jobs page - it shows all jobs and can be filtered
+  // The categories URL was unreliable, main jobs page works better
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (location) params.set("location", location);
 
-  const category = categoryMap[query.toLowerCase()] || "AI";
-  const url = `https://www.datacareer.ch/categories/${category}/`;
+  const url = params.toString()
+    ? `https://www.datacareer.ch/jobs/?${params.toString()}`
+    : "https://www.datacareer.ch/jobs/";
 
   try {
-    return await scraper.scrapeJobs(url, "Datacareer.ch");
+    // Datacareer uses page=X parameter (1-indexed)
+    return await scraper.scrapeJobsWithPagination(url, "Datacareer.ch", {
+      type: "param",
+      paramName: "page",
+      startValue: 1,
+      increment: 1,
+    });
   } catch (error) {
     console.error("[Datacareer.ch] Scrape failed:", error);
     return [];
@@ -599,6 +851,7 @@ export async function scrapeDatacareer(
 
 /**
  * Indeed Switzerland scraper
+ * Uses fallback method (markdown + Claude) because Firecrawl extract times out
  */
 export async function scrapeIndeedCH(
   query: string,
@@ -614,7 +867,8 @@ export async function scrapeIndeedCH(
   const url = `https://ch.indeed.com/jobs?${params.toString()}`;
 
   try {
-    return await scraper.scrapeJobs(url, "Indeed CH");
+    // Indeed times out with Firecrawl extract, use fallback method
+    return await scraper.scrapeJobsWithFallback(url, "Indeed CH");
   } catch (error) {
     console.error("[Indeed CH] Scrape failed:", error);
     return [];
@@ -623,6 +877,8 @@ export async function scrapeIndeedCH(
 
 /**
  * Glassdoor Switzerland scraper
+ * Uses simplified URL format that works reliably
+ * Note: Glassdoor pagination is complex, using single page
  */
 export async function scrapeGlassdoor(
   query: string,
@@ -630,12 +886,16 @@ export async function scrapeGlassdoor(
 ): Promise<EnhancedJobListing[]> {
   const scraper = new FirecrawlJobScraper();
 
-  // Glassdoor uses URL-encoded search
-  const searchQuery = encodeURIComponent(query);
-  const url = `https://www.glassdoor.com/Job/switzerland-${searchQuery.toLowerCase().replace(/%20/g, "-")}-jobs-SRCH_IL.0,11_IN226_KO12,${12 + query.length}.htm`;
+  // Use simpler Glassdoor URL format - the complex SRCH pattern was unreliable
+  // This format works well and shows Switzerland jobs
+  const searchQuery = encodeURIComponent(query).replace(/%20/g, "+");
+  const url = `https://www.glassdoor.com/Job/switzerland-jobs-SRCH_IL.0,11_IN226_KO12,${11 + searchQuery.length}.htm?keyword=${searchQuery}`;
 
   try {
-    return await scraper.scrapeJobs(url, "Glassdoor");
+    // Glassdoor has complex pagination - scrape first page only but extract all visible
+    return await scraper.scrapeJobsWithPagination(url, "Glassdoor", {
+      type: "none", // Glassdoor pagination URLs are complex
+    });
   } catch (error) {
     console.error("[Glassdoor] Scrape failed:", error);
     return [];
@@ -644,21 +904,62 @@ export async function scrapeGlassdoor(
 
 /**
  * ICTjobs.ch scraper - IT/Telecom focused
+ * NOTE: Disabled - ICTjobs uses a search form that doesn't expose job listings
+ * in static HTML. The site requires JS interaction to display results.
  */
 export async function scrapeICTjobs(
+  query: string,
+  location?: string
+): Promise<EnhancedJobListing[]> {
+  console.log("[ICTjobs.ch] Skipped - site requires JS interaction for search");
+  return [];
+}
+
+/**
+ * Jobup.ch scraper - Major Swiss job portal
+ * Uses fallback method for better reliability
+ */
+export async function scrapeJobup(
   query: string,
   location?: string
 ): Promise<EnhancedJobListing[]> {
   const scraper = new FirecrawlJobScraper();
 
   const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  const url = `https://www.ictjobs.ch/en/jobs?${params.toString()}`;
+  if (query) params.set("term", query);
+
+  const url = `https://www.jobup.ch/en/jobs/?${params.toString()}`;
 
   try {
-    return await scraper.scrapeJobs(url, "ICTjobs.ch");
+    // Jobup has dynamic content, use fallback
+    return await scraper.scrapeJobsWithFallback(url, "Jobup.ch");
   } catch (error) {
-    console.error("[ICTjobs.ch] Scrape failed:", error);
+    console.error("[Jobup.ch] Scrape failed:", error);
+    return [];
+  }
+}
+
+/**
+ * Jobscout24.ch scraper - Popular Swiss job board
+ * Uses query parameter format
+ */
+export async function scrapeJobscout24(
+  query: string,
+  location?: string
+): Promise<EnhancedJobListing[]> {
+  const scraper = new FirecrawlJobScraper();
+
+  // Use query param format which works better
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+
+  const url = `https://www.jobscout24.ch/en/jobs/?${params.toString()}`;
+
+  try {
+    // Use fallback for more reliable extraction
+    return await scraper.scrapeJobsWithFallback(url, "Jobscout24.ch");
+  } catch (error) {
+    console.error("[Jobscout24.ch] Scrape failed:", error);
     return [];
   }
 }
